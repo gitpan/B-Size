@@ -2,6 +2,10 @@
 #include "perl.h"
 #include "XSUB.h"
 
+#ifndef PM_GETRE
+#define PM_GETRE(o) ((o)->op_pmregexp)
+#endif
+
 typedef SV    * B__PV;
 typedef OP    * B__OP;
 typedef PMOP  * B__PMOP;
@@ -35,7 +39,7 @@ static int B__Size_SV_size(SV *sv)
 
 static int REGEXP_size(PMOP *o)
 {
-    REGEXP *rx = o->op_pmregexp;
+    REGEXP *rx = PM_GETRE(o);
     int retval = 0;
 
     if (!rx) {

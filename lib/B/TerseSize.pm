@@ -230,9 +230,11 @@ sub compile {
         }
     } else {
         if ($order eq "exec") {
-            return sub { B::walkoptree_exec(B::main_start, "terse_size") }
+            return sub { B::walkoptree_exec(B::main_start, "terse_size");
+                         curcop_info() if $curcop}
         } else {
-            return sub { B::walkoptree_slow(B::main_root, "terse_size") }
+            return sub { B::walkoptree_slow(B::main_root, "terse_size");
+                         curcop_info() if $curcop}
         }
     }
 }
@@ -505,7 +507,7 @@ sub Apache::Status::noh_fileline {
         print qq($lineno: <a name=$i>$$line</a>\n);
 
     }
-    if ($len > 0) {
+    if ($len > 0 and $i > $len) {
         printf "%4d..%d [...]\n", $len+1, $i;
     }
     close FH;

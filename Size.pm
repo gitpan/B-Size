@@ -13,7 +13,7 @@ my @specialsv_name = qw(Nullsv undef yes no);
 
 BEGIN {
     no strict;
-    $VERSION = '0.04';
+    $VERSION = '0.05';
 
     *dl_load_flags = DynaLoader->can('dl_load_flags');
     do {
@@ -92,7 +92,8 @@ sub B::AV::size {
     my $size = B::Sizeof::AV + B::Sizeof::XPVAV;
     my @vals = $sv->ARRAY;
     for (my $i = 0; $i <= $sv->MAX; $i++) {
-	$size += $vals[$i] ? $vals[$i]->size : B::Sizeof::SV;
+        my $sizecv = $vals[$i]->can('size') if $vals[$i];
+	$size += $sizecv ? $sizecv->($vals[$i]) : B::Sizeof::SV;
     }
     $size;
 }
