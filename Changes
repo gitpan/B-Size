@@ -1,0 +1,20 @@
+=item 0.04 - May 16, 2000
+
+OnMouseOver displays opcode description in the status window
+thanks to Charles Lee <charles@goXsports.com> for the link attribute
+magic
+
+source code is displayed in its own window
+
+use a reasonable size code window instead of the entire file when
+viewing source code linked to from opcodes
+
+number lines in source code windows
+
+fixes for 5.6.0
+
+fix for threaded perl [Daniel Sully <daniel@electricrain.com>]
+
+=item 0.03 - September 2, 1999
+
+first public release

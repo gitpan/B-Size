@@ -8,13 +8,15 @@
 package B::TerseSize;
 
 use strict;
+use constant IS_MODPERL => $ENV{MOD_PERL};
+
 use B ();
 use B::Asmdata qw(@specialsv_name);
 use B::Size ();
 
 {
     no strict;
-    $VERSION = '0.03';
+    $VERSION = '0.04';
 }
 
 my $opcount;
@@ -29,6 +31,23 @@ sub UNIVERSAL::op_size {
     $copsize += $size;
 }
 
+my $mouse_attr =
+  qq( onclick='javascript: return false') .
+  qq( onmouseout='window.status=""; return true');
+
+sub op_html_name {
+    my($op, $sname) = @_;
+
+    $sname =~ s/(\s+)$//;
+    my $pad = $1 || "";
+    my $desc = sprintf
+      qq(onmouseover='window.status="%s"; return true'),
+        B::OP::op_desc($op->type) || "unknown";
+    my $href = $curcop ? $curcop->line : "";
+
+    return qq(<a $desc $mouse_attr href="#$href">$sname</a>$pad);
+}
+
 sub peekop {
     my $op = shift;
 
@@ -36,9 +55,21 @@ sub peekop {
     $opcount++;
     $opsize += $size;
     $copsize += $size;
-    (my $ppaddr = $op->ppaddr) =~ s/^Perl_pp_//;
-    return sprintf("%-6s %-12s {%d bytes}", 
-		   B::class($op), $ppaddr, $size);
+    my $name;
+    my $sname = sprintf "%-13s", $op->name;
+
+    if (IS_MODPERL) {
+        $name = op_html_name($op, $sname);
+    }
+    else {
+        $name = $sname;
+    }
+
+    my $addr = sprintf "0x%lx", $$op;
+    $addr = qq(<a name="$addr">$addr</a>) if IS_MODPERL;
+
+    return sprintf qq(%-6s $name $addr {%d bytes}),
+      B::class($op), $size;
 }
 
 my $hr = "=" x 60;
@@ -54,56 +85,65 @@ sub package_size {
     my $total_opcount = 0;
     my $stash;
     {
-	no strict;
-	$stash = \%{"$package\::"};
+        no strict;
+        $stash = \%{"$package\::"};
     }
 
     for (keys %$stash) {
-	my $name = $package . "::$_";
-	my $has_code = 0;
+        my $name = $package . "::$_";
+        my $has_code = 0;
 
-	{
-	    no strict;
-	    $has_code = *{$name}{CODE}; #defined() expects CvROOT || CvXSUB
-	}
+        {
+            no strict;
+            $has_code = *{$name}{CODE}; #defined() expects CvROOT || CvXSUB
+        }
 
-	unless ($has_code) { #CV_walk will measure
-	    $total_opsize += 
-	      B::Sizeof::GV + B::Sizeof::XPVGV + B::Sizeof::GP;
-	}
+        unless ($has_code) { #CV_walk will measure
+            $total_opsize += 
+              B::Sizeof::GV + B::Sizeof::XPVGV + B::Sizeof::GP;
+        }
 
-	#measure global variables
-	for my $type (qw(ARRAY HASH SCALAR)) {
-	    no strict;
-	    next if $name =~ /::$/; #stash
-	    next unless /^[\w_]/;
-	    next if /^_</;
-	    my $ref = *{$name}{$type};
-	    next unless $ref;
-	    my $obj = B::svref_2object($ref);
-	    next if ref($obj) eq 'B::NULL';
-	    my $tsize = $obj->size;
-	    $total_opsize += $tsize;
-	    $retval{"*${_}{$type}"} = {'size' => $tsize};
-	}
+        #measure global variables
+        for my $type (qw(ARRAY HASH SCALAR)) {
+            no strict;
+            next if $name =~ /::$/; #stash
+            next unless /^[\w_]/;
+            next if /^_</;
+            my $ref = *{$name}{$type};
+            next unless $ref;
+            my $obj = B::svref_2object($ref);
+            next if ref($obj) eq 'B::NULL';
+            my $tsize = $obj->size;
+            $total_opsize += $tsize;
+            $retval{"*${_}{$type}"} = {'size' => $tsize};
+        }
 
-	next unless defined $has_code;
+        next unless defined $has_code;
 
-	CV_walk('slow', $name, 'op_size');
+        CV_walk('slow', $name, 'op_size');
 
-	for (keys %{ $filelex{$package} }) {
-	    my $fsize = $filelex{$package}->{$_};
-	    $total_opsize += $opsize;
-	    $retval{"my ${_} = ...;"} = 
-	      {'size' => $fsize};
-	}
-	%filelex = ();
-	$total_opsize  += $opsize;
-	$total_opcount += $opcount;
-	$retval{$_} = {'count' => $opcount, 'size' => $opsize};
+        for (keys %{ $filelex{$package} }) {
+            my $fsize = $filelex{$package}->{$_};
+            $total_opsize += $opsize;
+            $retval{"my ${_} = ...;"} = 
+              {'size' => $fsize};
+        }
+        %filelex = ();
+        $total_opsize  += $opsize;
+        $total_opcount += $opcount;
+        $retval{$_} = {'count' => $opcount, 'size' => $opsize};
     }
 
     return (\%retval, $total_opcount, $total_opsize);
+}
+
+my $b_objsym = \&B::objsym;
+
+sub objsym {
+    my $obj = shift;
+    my $value = $b_objsym->($obj);
+    return unless $value;
+    sprintf qq(<a href="#0x%lx">$value</a>), $$obj;
 }
 
 sub CV_walk {
@@ -122,25 +162,27 @@ sub CV_walk {
     $opsize += length $gv->NAME;
 
     if (my $stash = $cv->is_alias($package)) {
-	return;
+        return;
     }
 
     $opsize += B::Sizeof::XPVCV;
 
     $opsize += B::Sizeof::SV;
     if ($cv->FLAGS & B::SVf_POK) {
-	$opsize += B::Sizeof::XPV + length $cv->PV;
+        $opsize += B::Sizeof::XPV + length $cv->PV;
     }
     else {
-	$opsize += B::Sizeof::XPVIV; #IVX == -1 for no prototype
+        $opsize += B::Sizeof::XPVIV; #IVX == -1 for no prototype
     }
 
     init_curpad_names($cvref);
 
+    local *B::objsym = \&objsym if IS_MODPERL;
+
     if ($order eq 'exec') {
-	B::walkoptree_exec($cv->START, $meth);
+        B::walkoptree_exec($cv->START, $meth);
     } else {
-	B::walkoptree_slow($cv->ROOT, $meth);
+        B::walkoptree_slow($cv->ROOT, $meth);
     }
 
     curcop_info() if $curcop;
@@ -159,8 +201,8 @@ sub terse_size {
     print "\n$hr\nTotals: $opsize bytes | $opcount OPs\n$hr\n";
 
     if ($padsummary) {
-	print "\nPADLIST summary:\n";
-	print @$padsummary;
+        print "\nPADLIST summary:\n";
+        print @$padsummary;
     }
 }
 
@@ -179,19 +221,19 @@ sub compile {
     B::clearsym() if defined &B::clearsym;
 
     if (@options) {
-	return sub {
-	    my $objname;
-	    foreach $objname (@options) {
-		$objname = "main::$objname" unless $objname =~ /::/;
-		terse_size($order, $objname);
-	    }
-	}
+        return sub {
+            my $objname;
+            foreach $objname (@options) {
+                $objname = "main::$objname" unless $objname =~ /::/;
+                terse_size($order, $objname);
+            }
+        }
     } else {
-	if ($order eq "exec") {
-	    return sub { B::walkoptree_exec(B::main_start, "terse_size") }
-	} else {
-	    return sub { B::walkoptree_slow(B::main_root, "terse_size") }
-	}
+        if ($order eq "exec") {
+            return sub { B::walkoptree_exec(B::main_start, "terse_size") }
+        } else {
+            return sub { B::walkoptree_slow(B::main_root, "terse_size") }
+        }
     }
 }
 
@@ -215,16 +257,16 @@ sub B::OP::terse_size {
     my $t = $op->targ;
     my $targ = "";
     if ($t > 0) {
-	my $name = B::OP::op_name($op->targ);
-	my $desc = B::OP::op_desc($op->targ);
-	if ($op->type == 0) { #OP_NULL
-	    $targ = $name eq $desc ? " [$name]" : 
-	      sprintf " [%s - %s]", $name, $desc;
-	}
-	else {
-	    $targ = sprintf " [targ %d - %s]", $t, 
-	    padname($curpad_names[$t]);
-	}
+        my $name = B::OP::op_name($op->targ);
+        my $desc = B::OP::op_desc($op->targ);
+        if ($op->type == 0) { #OP_NULL
+            $targ = $name eq $desc ? " [$name]" : 
+              sprintf " [%s - %s]", $name, $desc;
+        }
+        else {
+            $targ = sprintf " [targ %d - %s]", $t, 
+            padname($curpad_names[$t]);
+        }
     }
     print indent($level), peekop($op), $targ, "\n";
 }
@@ -255,19 +297,24 @@ sub B::PVOP::terse_size {
 
 my $hr2 = "-" x 60;
 
+*cop_file = B::COP->can('file') || sub {
+    shift->filegv->SV->PV;
+};
+
 sub curcop_info {
     my $line = $curcop->line;
     my $linestr = "line $line";
 
-    if ($line > 0 && $ENV{MOD_PERL}) {
-	my $anchor = "";
-	if ($line > 10) {
-	    $anchor = "#" . ($line - 10);
-	}
-	my $args = sprintf "noh_fileline=1&filename=%s&line=%d", 
-	$curcop->filegv->SV->PV, $line;
-	my $uri = Apache->request->location;
-	$linestr = qq(<a href="$uri?$args$anchor">$linestr</a>);
+    if ($line > 0 && IS_MODPERL) {
+        my $anchor = "";
+        if ($line > 10) {
+            $anchor = "#" . ($line - 10);
+        }
+        my $window = sprintf "offset=%d&len=%d", $line - 100, $line + 100;
+        my $args = sprintf "noh_fileline=1&filename=%s&line=%d&$window",
+        cop_file($curcop), $line;
+        my $uri = Apache->request->location;
+        $linestr = qq(<a name="$line" target=top href="$uri?$args$anchor">$linestr</a>);
     }
 
     print "\n[$linestr size: $copsize bytes]\n";
@@ -276,9 +323,9 @@ sub curcop_info {
 sub B::COP::terse_size {
     my ($op, $level) = @_;
 
-    my $label = $op->label;
+    my $label = $op->label || "";
     if ($label) {
-	$label = " label ".B::cstring($label);
+        $label = " label ".B::cstring($label);
     }
 
     curcop_info() if $curcop;
@@ -294,7 +341,7 @@ sub B::PV::terse_size {
     my ($sv, $level) = @_;
     print indent($level);
     my $pv = B::cstring($sv->PV);
-    B::Size::escape_html(\$pv) if $ENV{MOD_PERL};
+    B::Size::escape_html(\$pv) if IS_MODPERL;
     printf "%s %s\n", B::class($sv), $pv;
 }
 
@@ -308,9 +355,9 @@ sub B::GV::terse_size {
     my ($gv, $level) = @_;
     my $stash = $gv->STASH->NAME;
     if ($stash eq "main") {
-	$stash = "";
+        $stash = "";
     } else {
-	$stash = $stash . "::";
+        $stash = $stash . "::";
     }
     print indent($level);
     printf "%s *%s%s\n", B::class($gv), $stash, $gv->NAME;
@@ -355,17 +402,17 @@ sub PADLIST_size {
     my $size = (B::Sizeof::AV + B::Sizeof::XPVAV) * 3; #padlist, names, values
 
     if ($obj->PADLIST->isa('B::SPECIAL')) {
-	return B::Sizeof::AV; #XXX???
+        return B::Sizeof::AV; #XXX???
     }
 
     my($padnames, $padvals) = $obj->PADLIST->ARRAY;
     my @names = $padnames->ARRAY;
     $padname_max = 0;
     my @names_pv = map {
-	my $pv = padname($_);
-	$padname_max = length($pv) > $padname_max ? 
-	  length($pv) : $padname_max;
-	$pv;
+        my $pv = padname($_);
+        $padname_max = length($pv) > $padname_max ? 
+          length($pv) : $padname_max;
+        $pv;
     } @names;
 
     my @vals = $padvals->ARRAY;
@@ -375,33 +422,33 @@ sub PADLIST_size {
     my $wantarray = wantarray;
 
     for (my $i = 0; $i <= $fill; $i++) {
-	my $entsize = $names[$i]->size;
-	my $is_fake = $names[$i]->FLAGS & B::SVf_FAKE;
-	if ($is_fake) {
-	    $entsize += B::Sizeof::SV; # just a reference to outside scope
-	    if (B::class($obj->OUTSIDE->GV) eq 'SPECIAL') {
-		$filelex{ $obj->GV->STASH->NAME }->{ $names_pv[$i] } = 
-		  $vals[$i]->size;
-	    }
-	    else {
-		#XXX nested/anonsubs
-	    }
-	}
-	else {
-	    $entsize += $vals[$i]->size;
-	}
-	$size += $entsize;
-	next unless $wantarray;
+        my $entsize = $names[$i]->size;
+        my $is_fake = $names[$i]->FLAGS & B::SVf_FAKE;
+        if ($is_fake) {
+            $entsize += B::Sizeof::SV; # just a reference to outside scope
+            if (B::class($obj->OUTSIDE->GV) eq 'SPECIAL') {
+                $filelex{ $obj->GV->STASH->NAME }->{ $names_pv[$i] } = 
+                  $vals[$i]->size;
+            }
+            else {
+                #XXX nested/anonsubs
+            }
+        }
+        else {
+            $entsize += $vals[$i]->size;
+        }
+        $size += $entsize;
+        next unless $wantarray;
 
-	my $class = B::class($vals[$i]);
-	my $byteinfo = sprintf "[%-4s %3d bytes]",
-	$class, $entsize;
+        my $class = B::class($vals[$i]);
+        my $byteinfo = sprintf "[%-4s %3d bytes]",
+        $class, $entsize;
 
-	push @retval, sprintf "%${fill_len}d: %${padname_max}s %s %s\n", 
-	$i,
-	$names_pv[$i], 
-	$byteinfo,
-	$is_fake ? '__SvFAKE__' : $vals[$i]->sizeval;
+        push @retval, sprintf "%${fill_len}d: %${padname_max}s %s %s\n", 
+        $i,
+        $names_pv[$i], 
+        $byteinfo,
+        $is_fake ? '__SvFAKE__' : $vals[$i]->sizeval;
     }
 
     return $wantarray ? ($size, \@retval) : $size;
@@ -411,30 +458,55 @@ sub PADLIST_size {
 sub Apache::Status::noh_fileline {
     my $r = shift;
     my %args = $r->args;
+    my $offset = $args{offset} || 0;
+    my $len = $args{len} || 0;
+
     local *FH;
     my $filename = $args{filename};
     $r->send_http_header('text/html');
 
     unless (Apache::Status::status_config($r, "StatusTerseSize")) {
-	print "sorry, StatusTerseSize not enabled\n";
-	return 0;
+        print "sorry, StatusTerseSize not enabled\n";
+        return 0;
     }
 
     unless (exists $main::{"_<$filename"}) {
-	print "sorry, $filename is not a file used by Perl\n";
-	return 0;
+        #useithreads doesnt gv_fetchfile()
+        my $in_inc = 0;
+        for (keys %INC) {
+            if ($INC{$_} eq $filename) {
+                $in_inc = 1;
+                $main::{"_<$filename"} = $_;
+                last;
+            }
+        }
+        unless ($in_inc) {
+            print "sorry, `$filename' is not a file used by Perl\n";
+            return 0;
+        }
     }
 
-    my $i = 1;
+    my $i = 0;
     $r->print('<pre>');
+    if ($offset > 0) {
+        printf "%4d..%d [...]\n", 1, $offset-1;
+    }
     open FH, $filename or die $!;
     while (<FH>) {
-	chomp;
-	B::Size::escape_html(\$_);
-	my $line = ($i == $args{line}) ? 
-	  \qq(<font color="#FF0000">$_</font>) : \$_;
-	print qq(<a name=$i>$$line\n);
-	$i++;
+        $i++;
+        next if $len > 0 and $i > $len;
+        next if $offset > 0 and $i < $offset;
+        chomp;
+        s/^\t/        /; #indent proper
+        my $lineno = sprintf "%4d", $i;
+        B::Size::escape_html(\$_);
+        my $line = ($i == $args{line}) ? 
+          \qq(<font color="#FF0000">$_</font>) : \$_;
+        print qq($lineno: <a name=$i>$$line</a>\n);
+
+    }
+    if ($len > 0) {
+        printf "%4d..%d [...]\n", $len+1, $i;
     }
     close FH;
 
@@ -455,14 +527,14 @@ sub apache_package_size {
     my $cache = {};
 
     {
-	no strict 'refs';
-	$keys = keys %{"$package\::"};
+        no strict 'refs';
+        $keys = keys %{"$package\::"};
     }
 
     if ($cache = $summary_cache{$package}) {
-	if ($cache->{'keys'} == $keys) {
-	    return @{ $cache->{'data'} } if $cache->{'data'};
-	}
+        if ($cache->{'keys'} == $keys) {
+            return @{ $cache->{'data'} } if $cache->{'data'};
+        }
     }
 
     $cache->{'keys'} = $keys;
@@ -474,11 +546,11 @@ sub status_memory_usage {
     my($r, $q) = @_;
 
     unless (Apache::Status::status_config($r, "StatusTerseSize")) {
-	return ["StatusTerseSize is not enabled"];
+        return ["StatusTerseSize is not enabled"];
     }
 
     unless ($r->dir_config("StatusTerseSizeMainSummary")) {
-	return ["StatusTerseSizeMainSummary is not enabled"];
+        return ["StatusTerseSizeMainSummary is not enabled"];
     }
 
     my $script = $q->script_name;
@@ -488,18 +560,18 @@ sub status_memory_usage {
     my($clen, $slen, $nlen);
 
     for my $package ('main', $stab->packages) {
-	my($subs, $opcount, $opsize) = apache_package_size($package);
-	$total{$package} = {'count' => $opcount, 'size' => $opsize};
-	$nlen = max($nlen, length $package);
-	$slen = max($slen, length $opsize);
-	$clen = max($clen, length $opcount);
+        my($subs, $opcount, $opsize) = apache_package_size($package);
+        $total{$package} = {'count' => $opcount, 'size' => $opsize};
+        $nlen = max($nlen, length $package);
+        $slen = max($slen, length $opsize);
+        $clen = max($clen, length $opcount);
     }
 
     for (sort { $total{$b}->{size} <=> $total{$a}->{size} } keys %total) {
-	my $link = qq(<a href="$script/$_?noh_b_package_size">);
-	push @retval,
-	sprintf "$link%-${nlen}s</a> %${slen}d bytes | %${clen}d OPs\n", 
-	$_, $total{$_}->{size}, $total{$_}->{count};
+        my $link = qq(<a href="$script/$_?noh_b_package_size">);
+        push @retval,
+        sprintf "$link%-${nlen}s</a> %${slen}d bytes | %${clen}d OPs\n", 
+        $_, $total{$_}->{size}, $total{$_}->{count};
     }
     \@retval;
 }
@@ -507,7 +579,7 @@ sub status_memory_usage {
 Apache::Status->menu_item(
     'status_memory_usage' => "Memory Usage",
     \&status_memory_usage,
-) if $ENV{MOD_PERL} and Apache->module("Apache::Status");
+) if IS_MODPERL and Apache->module("Apache::Status");
 
 1;
 
@@ -550,8 +622,9 @@ dump a subroutine tree along with the other subroutine options.
 The memory measurements are only an estimate.  But, chances are, if a 
 measurement is not accurate, it is smaller than the actual size.
 
-The "execution order" option under Apache::Status can only be run once 
-unless you apply the I<patches/b_clearsym_60.pat> to your Perl kit.
+The "execution order" option under Apache::Status can only be run once
+unless you are using Perl 5.6.0+ or apply the
+I<patches/b_clearsym_60.pat> to older Perls.
 
 =head1 SEE ALSO
 

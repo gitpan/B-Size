@@ -164,8 +164,31 @@ static XS(XS_B__MAGIC_LENGTH)
     XSRETURN(1);
 }
 
+static XS(XS_B__OP_name)
+{
+    dXSARGS;
+    if (items != 1)
+        croak("Usage: B::OP::name(o)");
+    {
+	B__OP	o;
+	char *	RETVAL;
+
+	if (SvROK(ST(0))) {
+	    IV tmp = SvIV((SV*)SvRV(ST(0)));
+	    o = (B__OP) tmp;
+	}
+	else
+	    croak("o is not a reference");
+
+	ST(0) = sv_newmortal();
+	sv_setpv(ST(0), PL_op_name[o->op_type]);
+    }
+    XSRETURN(1);
+}
+
 static void boot_B_compat(void)
 {
+    HV *b_stash = gv_stashpvn("B", 1, TRUE);
     /* these were not present until 5.005_58ish */
     if (!perl_get_cv("B::PV::LEN", FALSE)) {
         (void)newXS("B::PV::LEN", XS_B__PV_LEN, __FILE__);
@@ -176,11 +199,14 @@ static void boot_B_compat(void)
     if (!perl_get_cv("B::MAGIC::LENGTH", FALSE)) {
         (void)newXS("B::MAGIC::LENGTH", XS_B__MAGIC_LENGTH, __FILE__);
     }
+    if (!perl_get_cv("B::OP::name", FALSE)) {
+        (void)newXS("B::OP::name", XS_B__OP_name, __FILE__);
+    }
     if (!perl_get_cv("B::SVf_POK", FALSE)) {
-	(void)newCONSTSUB(PL_defstash, "B::SVf_POK", newSViv(SVf_POK));
+	(void)newCONSTSUB(b_stash, "SVf_POK", newSViv(SVf_POK));
     }
     if (!perl_get_cv("B::SVf_FAKE", FALSE)) {
-	(void)newCONSTSUB(PL_defstash, "B::SVf_FAKE", newSViv(SVf_FAKE));
+	(void)newCONSTSUB(b_stash, "SVf_FAKE", newSViv(SVf_FAKE));
     }
 }
 

@@ -1,6 +1,7 @@
 MANIFEST
 Makefile.PL
 README
+Changes
 Size.xs
 Size.pm
 typemap

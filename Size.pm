@@ -1,5 +1,5 @@
 # B::TerseSize.pm
-# Copyright (c) 1999 Doug MacEachern. All rights reserved.
+# Copyright (c) 1999-2000 Doug MacEachern. All rights reserved.
 # This module is free software; you can redistribute and/or modify
 # it under the same terms as Perl itself.
 
@@ -13,7 +13,7 @@ my @specialsv_name = qw(Nullsv undef yes no);
 
 BEGIN {
     no strict;
-    $VERSION = '0.03';
+    $VERSION = '0.04';
 
     *dl_load_flags = DynaLoader->can('dl_load_flags');
     do {

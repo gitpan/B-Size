@@ -10,6 +10,13 @@ typedef double NV;
 EOF
 
 }
+
+if ($] >= 5.005_63) {
+    print XS <<EOF;
+#define GVOP SVOP
+EOF
+}
+
 print XS <<EOF;
 static void boot_B_Sizeof(void)
 {
@@ -22,6 +29,7 @@ while (<DATA>) {
     print XS newCONSTSUB($_);
 }
 print XS newCONSTSUB("CONDOP") if $] < 5.005_58;
+
 print XS "\n}\n";
 
 WriteMakefile(
