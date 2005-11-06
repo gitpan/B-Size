@@ -2,6 +2,7 @@ BEGIN {
     $ENV{PERL_DL_NONLAZY} = '0' if $] < 5.005_58; #Perl_byterun problem
 }
 
+use strict;
 use Test;
 
 use B::Size ();
@@ -21,5 +22,5 @@ my $tests = @subs;
 plan tests => $tests;
 
 for (@subs) {
-    ok &$_;
+    ok eval "&$_";
 }

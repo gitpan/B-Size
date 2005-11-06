@@ -9,6 +9,7 @@ package B::TerseSize;
 
 use strict;
 use constant IS_MODPERL => $ENV{MOD_PERL};
+use constant MP2        => $ENV{MOD_PERL_API_VERSION} == 2 ? 1 : 0;
 
 use B ();
 use B::Asmdata qw(@specialsv_name);
@@ -16,7 +17,7 @@ use B::Size ();
 
 {
     no strict;
-    $VERSION = '0.04';
+    $VERSION = '0.06';
 }
 
 my $opcount;
@@ -315,7 +316,7 @@ sub curcop_info {
         my $window = sprintf "offset=%d&len=%d", $line - 100, $line + 100;
         my $args = sprintf "noh_fileline=1&filename=%s&line=%d&$window",
         cop_file($curcop), $line;
-        my $uri = Apache->request->location;
+        my $uri = MP2 ? Apache2::RequestUtil->request()->location() : Apache->request->location;
         $linestr = qq(<a name="$line" target=top href="$uri?$args$anchor">$linestr</a>);
     }
 
@@ -515,6 +516,69 @@ sub Apache::Status::noh_fileline {
     0;
 }
 
+sub Apache2::Status::noh_fileline {
+    my $r = shift;
+    my $args = $r->args;
+    
+    require CGI;
+    my $CGI = CGI->new($args);
+    my %params = map { $_ => $CGI->param($_) } $CGI->param();
+
+    my $offset = $params{offset} || 0;
+    my $len = $params{len} || 0;
+
+    local *FH;
+    my $filename = $params{filename};
+    $r->content_type('text/html');
+
+    unless (Apache2::Status::status_config($r, "StatusTerseSize")) {
+        print "sorry, StatusTerseSize not enabled\n";
+        return 0;
+    }
+
+    unless (exists $main::{"_<$filename"}) {
+        #useithreads doesnt gv_fetchfile()
+        my $in_inc = 0;
+        for (keys %INC) {
+            if ($INC{$_} eq $filename) {
+                $in_inc = 1;
+                $main::{"_<$filename"} = $_;
+                last;
+            }
+        }
+        unless ($in_inc) {
+            print "sorry, '$filename' is not a file used by Perl\n";
+            return 0;
+        }
+    }
+
+    my $i = 0;
+    $r->print('<pre>');
+    if ($offset > 0) {
+        printf "%4d..%d [...]\n", 1, $offset-1;
+    }
+    open FH, $filename or die $!;
+    while (<FH>) {
+        $i++;
+        next if $len > 0 and $i > $len;
+        next if $offset > 0 and $i < $offset;
+        chomp;
+        s/^\t/        /; #indent proper
+        my $lineno = sprintf "%4d", $i;
+        B::Size::escape_html(\$_);
+        my $line = ($i == $params{line}) ? 
+          \qq(<font color="#FF0000">$_</font>) : \$_;
+        print qq($lineno: <a name=$i>$$line</a>\n);
+
+    }
+    if ($len > 0 and $i > $len) {
+        printf "%4d..%d [...]\n", $len+1, $i;
+    }
+    close FH;
+
+    0;
+}
+
 sub max {
     my($cur, $maybe) = @_;
     $maybe > $cur ? $maybe : $cur;
@@ -547,8 +611,15 @@ sub apache_package_size {
 sub status_memory_usage {
     my($r, $q) = @_;
 
-    unless (Apache::Status::status_config($r, "StatusTerseSize")) {
-        return ["StatusTerseSize is not enabled"];
+    if (MP2) {
+        unless (Apache2::Status::status_config($r, "StatusTerseSize")) {
+            return ["StatusTerseSize is not enabled"];
+        }
+    }
+    else {
+        unless (Apache::Status::status_config($r, "StatusTerseSize")) {
+            return ["StatusTerseSize is not enabled"];
+        }
     }
 
     unless ($r->dir_config("StatusTerseSizeMainSummary")) {
@@ -578,10 +649,18 @@ sub status_memory_usage {
     \@retval;
 }
 
-Apache::Status->menu_item(
-    'status_memory_usage' => "Memory Usage",
-    \&status_memory_usage,
-) if IS_MODPERL and Apache->module("Apache::Status");
+if (MP2) {
+    Apache2::Status->menu_item(
+        'status_memory_usage' => "Memory Usage",
+        \&status_memory_usage,
+    );
+}
+elsif (IS_MODPERL and Apache->module("Apache::Status")) {
+    Apache::Status->menu_item(
+        'status_memory_usage' => "Memory Usage",
+        \&status_memory_usage,
+    );
+}
 
 1;
 
@@ -634,7 +713,8 @@ B(3), B::Size(3), B::LexInfo(3), Apache::Status(3)
 
 =head1 AUTHOR
 
-Doug MacEachern
+Currently Maintained by Philip M. Gollucci
+Previously Developed by Doug MacEachern
 based in part on B::Terse by Malcolm Beattie
 
 =cut

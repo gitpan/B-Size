@@ -1,10 +1,11 @@
+Changes
 MANIFEST
 Makefile.PL
 README
-Changes
-Size.xs
 Size.pm
-typemap
+Size.xs
 lib/B/TerseSize.pm
-test.pl
 patches/b_clearsym_60.pat
+test.pl
+typemap
+META.yml                                 Module meta-data (added by MakeMaker)

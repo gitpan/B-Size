@@ -1,3 +1,13 @@
+=item 0.06 - November 5, 2005
+
+Now compatable with mod_perl 2.0 RC5 and higher for use with Apache2::Status
+[Philip M. Gollucci <pgollucci@p6m7g8.com>]
+
+Moved from CVS to SVN at http://svn.perl.org/modules/B-Size
+[Philip M. Gollucci <pgollucci@p6m7g8.com>]
+
+Maintainership passed to Philip M. Gollucci <pgollucci@p6m7g8.com>
+
 =item 0.05 - August 28, 2002
 
 fix to compile with 5.8.0+ ithreads

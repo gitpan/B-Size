@@ -35,24 +35,12 @@ print XS "\n}\n";
 WriteMakefile(
     'NAME' => 'B::Size',
     'VERSION_FROM' => 'Size.pm',
-    'macro' => {
-	  CVSROOT => 'modperl.com:/local/cvs_repository',
-    },
 );
 
 sub newCONSTSUB {
     my $name = shift;
     qq{   (void)newCONSTSUB(stash, "$name", newSViv(sizeof($name)));\n};
 }
-
-sub MY::postamble { 
-    return <<'EOF'; 
-
-cvs_tag :
-	cvs -d $(CVSROOT) tag v$(VERSION_SYM) . 
-	@echo update Size.pm VERSION now 
-EOF
-} 
 
 __END__
 OP

@@ -43,7 +43,7 @@ static int REGEXP_size(PMOP *o)
     int retval = 0;
 
     if (!rx) {
-	return retval;
+    	return retval;
     }
 
     retval = rx->prelen;
@@ -54,44 +54,35 @@ static int REGEXP_size(PMOP *o)
     retval += sizeof_if(rx->endp);
 
     if (rx->data) {
-	int n = rx->data->count;
-	retval += sizeof(*rx->data);
-	retval += sizeof(void *) * n;
+    	int n = rx->data->count;
+    	retval += sizeof(*rx->data);
+    	retval += sizeof(void *) * n;
 
-	while (--n >= 0) {
-	    switch (rx->data->what[n]) {
-	    case 's':
-	    case 'p':
-	        retval += B__Size_SV_size((SV*)rx->data->data[n]);
-	        break;
-	    case 'o':
-	        /*XXX: OP*/
-		break;
-	    case 'n':
-	        break;
-	    }
-	}
+    	while (--n >= 0) {
+    	    switch (rx->data->what[n]) {
+        	    case 's':
+         	    case 'p':
+        	        retval += B__Size_SV_size((SV*)rx->data->data[n]);
+           	        break;
+        	    case 'o':
+        	        /*XXX: OP*/
+        		break;
+        	    case 'n':
+        	        break;
+   	        }
+        }
     }
 
     if (rx->substrs) {
-#if 0
-	int i;
-	for (i=0; i<3; i++) {
-	    if (rx->substrs->data[i].substr) {
-		retval += B__Size_SV_size(rx->substrs->data[i].substr);
-	    }
-	}
-#else
-	/* check_substr just points to anchor or float */
-	if (rx->anchored_substr) {
-	    retval += B__Size_SV_size(rx->anchored_substr);
-	}
-	if (rx->float_substr) {
-	    retval += B__Size_SV_size(rx->float_substr);
-	}
-#endif
+	    /* check_substr just points to anchor or float */
+    	if (rx->anchored_substr) {
+    	    retval += B__Size_SV_size(rx->anchored_substr);
+    	}
+    	if (rx->float_substr) {
+    	    retval += B__Size_SV_size(rx->float_substr);
+    	}
 
-	retval += sizeof(*rx->substrs);
+    	retval += sizeof(*rx->substrs);
     }
 
     return retval;
@@ -101,22 +92,24 @@ static XS(XS_B__PV_LEN)
 {
     dXSARGS;
     if (items != 1)
-	croak("Usage: B::PV::LEN(sv)");
+    	croak("Usage: B::PV::LEN(sv)");
+
     {
-	B__PV	sv;
-	STRLEN	RETVAL;
+    	B__PV	sv;
+    	STRLEN	RETVAL;
 
-	if (SvROK(ST(0))) {
-	    IV tmp = SvIV((SV*)SvRV(ST(0)));
-	    sv = (B__PV) tmp;
-	}
-	else
-	    croak("sv is not a reference");
+    	if (SvROK(ST(0))) {
+    	    IV tmp = SvIV((SV*)SvRV(ST(0)));
+    	    sv = (B__PV) tmp;
+    	}
+    	else
+    	    croak("sv is not a reference");
 
-	RETVAL = SvLEN(sv);
-	ST(0) = sv_newmortal();
-	sv_setiv(ST(0), (IV)RETVAL);
+    	RETVAL = SvLEN(sv);
+    	ST(0) = sv_newmortal();
+    	sv_setiv(ST(0), (IV)RETVAL);
     }
+
     XSRETURN(1);
 }
 
@@ -124,22 +117,23 @@ static XS(XS_B__PV_CUR)
 {
     dXSARGS;
     if (items != 1)
-	croak("Usage: B::PV::CUR(sv)");
+    	croak("Usage: B::PV::CUR(sv)");
     {
-	B__PV	sv;
-	STRLEN	RETVAL;
+    	B__PV	sv;
+    	STRLEN	RETVAL;
 
-	if (SvROK(ST(0))) {
-	    IV tmp = SvIV((SV*)SvRV(ST(0)));
-	    sv = (B__PV) tmp;
-	}
-	else
-	    croak("sv is not a reference");
+    	if (SvROK(ST(0))) {
+    	    IV tmp = SvIV((SV*)SvRV(ST(0)));
+    	    sv = (B__PV) tmp;
+    	}
+    	else
+    	    croak("sv is not a reference");
 
-	RETVAL = SvCUR(sv);
-	ST(0) = sv_newmortal();
-	sv_setiv(ST(0), (IV)RETVAL);
+    	RETVAL = SvCUR(sv);
+    	ST(0) = sv_newmortal();
+    	sv_setiv(ST(0), (IV)RETVAL);
     }
+    
     XSRETURN(1);
 }
 
@@ -149,22 +143,23 @@ static XS(XS_B__MAGIC_LENGTH)
 {
     dXSARGS;
     if (items != 1)
-	croak("Usage: B::MAGIC::LENGTH(mg)");
+    	croak("Usage: B::MAGIC::LENGTH(mg)");
     {
-	B__MAGIC	mg;
-	I32	RETVAL;
+    	B__MAGIC	mg;
+    	I32	RETVAL;
 
-	if (SvROK(ST(0))) {
-	    IV tmp = SvIV((SV*)SvRV(ST(0)));
-	    mg = (B__MAGIC) tmp;
-	}
-	else
-	    croak("mg is not a reference");
+    	if (SvROK(ST(0))) {
+    	    IV tmp = SvIV((SV*)SvRV(ST(0)));
+    	    mg = (B__MAGIC) tmp;
+    	}
+    	else
+    	    croak("mg is not a reference");
 
-	RETVAL = MgLENGTH(mg);
-	ST(0) = sv_newmortal();
-	sv_setiv(ST(0), (IV)RETVAL);
+    	RETVAL = MgLENGTH(mg);
+    	ST(0) = sv_newmortal();
+    	sv_setiv(ST(0), (IV)RETVAL);
     }
+    
     XSRETURN(1);
 }
 
@@ -174,25 +169,27 @@ static XS(XS_B__OP_name)
     if (items != 1)
         croak("Usage: B::OP::name(o)");
     {
-	B__OP	o;
-	char *	RETVAL;
+    	B__OP	o;
+    	char *	RETVAL;
 
-	if (SvROK(ST(0))) {
-	    IV tmp = SvIV((SV*)SvRV(ST(0)));
-	    o = (B__OP) tmp;
-	}
-	else
-	    croak("o is not a reference");
+    	if (SvROK(ST(0))) {
+    	    IV tmp = SvIV((SV*)SvRV(ST(0)));
+    	    o = (B__OP) tmp;
+    	}
+    	else
+    	    croak("o is not a reference");
 
-	ST(0) = sv_newmortal();
-	sv_setpv(ST(0), PL_op_name[o->op_type]);
+    	ST(0) = sv_newmortal();
+    	sv_setpv(ST(0), PL_op_name[o->op_type]);
     }
+
     XSRETURN(1);
 }
 
 static void boot_B_compat(void)
 {
     HV *b_stash = gv_stashpvn("B", 1, TRUE);
+
     /* these were not present until 5.005_58ish */
     if (!perl_get_cv("B::PV::LEN", FALSE)) {
         (void)newXS("B::PV::LEN", XS_B__PV_LEN, __FILE__);
@@ -207,10 +204,10 @@ static void boot_B_compat(void)
         (void)newXS("B::OP::name", XS_B__OP_name, __FILE__);
     }
     if (!perl_get_cv("B::SVf_POK", FALSE)) {
-	(void)newCONSTSUB(b_stash, "SVf_POK", newSViv(SVf_POK));
+    	(void)newCONSTSUB(b_stash, "SVf_POK", newSViv(SVf_POK));
     }
     if (!perl_get_cv("B::SVf_FAKE", FALSE)) {
-	(void)newCONSTSUB(b_stash, "SVf_FAKE", newSViv(SVf_FAKE));
+    	(void)newCONSTSUB(b_stash, "SVf_FAKE", newSViv(SVf_FAKE));
     }
 }
 
