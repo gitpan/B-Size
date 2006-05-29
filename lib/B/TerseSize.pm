@@ -17,7 +17,7 @@ use B::Size ();
 
 {
     no strict;
-    $VERSION = '0.07';
+    $VERSION = '0.08';
 }
 
 my $opcount;
