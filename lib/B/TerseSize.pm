@@ -17,7 +17,7 @@ use B::Size ();
 
 {
     no strict;
-    $VERSION = '0.06';
+    $VERSION = '0.07';
 }
 
 my $opcount;
@@ -178,7 +178,8 @@ sub CV_walk {
 
     init_curpad_names($cvref);
 
-    local *B::objsym = \&objsym if IS_MODPERL;
+    no strict;
+    local *B::objesym = \&objsym if IS_MODPERL;
 
     if ($order eq 'exec') {
         B::walkoptree_exec($cv->START, $meth);
@@ -447,6 +448,7 @@ sub PADLIST_size {
         my $byteinfo = sprintf "[%-4s %3d bytes]",
         $class, $entsize;
 
+        no warnings;
         push @retval, sprintf "%${fill_len}d: %${padname_max}s %s %s\n", 
         $i,
         $names_pv[$i], 

@@ -13,7 +13,7 @@ my @specialsv_name = qw(Nullsv undef yes no);
 
 BEGIN {
     no strict;
-    $VERSION = '0.06';
+    $VERSION = '0.07';
 
     *dl_load_flags = DynaLoader->can('dl_load_flags');
     do {
@@ -21,8 +21,11 @@ BEGIN {
     }->(__PACKAGE__, $VERSION);
 }
 
-*B::OP::size   = \&B::Sizeof::OP;
-*B::UNOP::size = \&B::Sizeof::UNOP;
+{
+    no warnings qw (redefine prototype);
+    *B::OP::size   = \&B::Sizeof::OP;
+    *B::UNOP::size = \&B::Sizeof::UNOP;
+}
 
 sub B::SVOP::size {
     B::Sizeof::SVOP + shift->sv->size;
@@ -220,7 +223,7 @@ my $esc = join '', keys %esc;
 
 sub escape_html {
     my $str = shift;
-    $$str =~ s/([$esc])/&$esc{$1};/go;
+    $$str =~ s/([$esc])/&$esc{$1};/go if $$str;
 }
 
 1;

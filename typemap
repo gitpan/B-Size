@@ -5,7 +5,7 @@ INPUT
 T_OP_OBJ
 	if (SvROK($arg)) {
 	    IV tmp = SvIV((SV*)SvRV($arg));
-	    $var = ($type) tmp;
+	    $var = INT2PTR($type, tmp);
 	}
 	else
 	    croak(\"$var is not a reference\")

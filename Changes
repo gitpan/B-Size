@@ -1,3 +1,14 @@
+=item 0.07
+
+http://rt.cpan.org/Ticket/Display.html?id=14953
+fix warning: cast to pointer from integer of different size
+compile warnings where on a 32bit OS, 
+IV's are larger than pointers.
+
+Also, finally silence the well know warning:
+Size.pm: Prototype mismatch: sub B::OP::size: none vs () 
+[Philip M. Gollucci <pgollucci@p6m7g8.com>]
+
 =item 0.06 - November 5, 2005
 
 Now compatable with mod_perl 2.0 RC5 and higher for use with Apache2::Status

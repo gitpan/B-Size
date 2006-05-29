@@ -100,7 +100,7 @@ static XS(XS_B__PV_LEN)
 
     	if (SvROK(ST(0))) {
     	    IV tmp = SvIV((SV*)SvRV(ST(0)));
-    	    sv = (B__PV) tmp;
+    	    sv = INT2PTR(B__PV, tmp);
     	}
     	else
     	    croak("sv is not a reference");
@@ -124,7 +124,7 @@ static XS(XS_B__PV_CUR)
 
     	if (SvROK(ST(0))) {
     	    IV tmp = SvIV((SV*)SvRV(ST(0)));
-    	    sv = (B__PV) tmp;
+    	    sv = INT2PTR(B__PV, tmp);
     	}
     	else
     	    croak("sv is not a reference");
@@ -150,7 +150,7 @@ static XS(XS_B__MAGIC_LENGTH)
 
     	if (SvROK(ST(0))) {
     	    IV tmp = SvIV((SV*)SvRV(ST(0)));
-    	    mg = (B__MAGIC) tmp;
+            mg = INT2PTR(B__MAGIC, tmp);
     	}
     	else
     	    croak("mg is not a reference");
@@ -174,7 +174,7 @@ static XS(XS_B__OP_name)
 
     	if (SvROK(ST(0))) {
     	    IV tmp = SvIV((SV*)SvRV(ST(0)));
-    	    o = (B__OP) tmp;
+    	    o = INT2PTR(B__OP, tmp);
     	}
     	else
     	    croak("o is not a reference");
