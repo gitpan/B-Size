@@ -1,3 +1,10 @@
+=item 0.09 December 2, 2006
+
+Fix a bug specific to mod_perl2 environment where $q->script_name
+doesn't work sinc we don't use CGI.
+Submitted by: Jonathan <modperl-list@2xlp.com>
+Reviewed by: David Scott <ds94103@earthlink.net>
+Tweaked by: Philip M. Gollucci<pgollucci@p6m7g8.com>
 
 =item 0.08 May 29, 2006
 

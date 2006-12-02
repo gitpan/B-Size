@@ -13,7 +13,7 @@ my @specialsv_name = qw(Nullsv undef yes no);
 
 BEGIN {
     no strict;
-    $VERSION = '0.08';
+    $VERSION = '0.09';
 
     *dl_load_flags = DynaLoader->can('dl_load_flags');
     do {

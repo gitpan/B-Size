@@ -17,7 +17,7 @@ use B::Size ();
 
 {
     no strict;
-    $VERSION = '0.08';
+    $VERSION = '0.09';
 }
 
 my $opcount;
@@ -628,7 +628,7 @@ sub status_memory_usage {
         return ["StatusTerseSizeMainSummary is not enabled"];
     }
 
-    my $script = $q->script_name;
+    my $script = MP2 ? $r->uri : $q->script_name;
     my $stab = Devel::Symdump->rnew('main');
     my %total;
     my @retval = ('<pre>');
